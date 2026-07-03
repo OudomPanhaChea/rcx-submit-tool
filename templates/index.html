@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RCX Submit Assistant</title>
+  <style>
+    :root {
+      --bg:#0b0d12; --panel:#151922; --panel2:#1c2130; --line:#272d3a;
+      --text:#e9ecf3; --muted:#8b93a7; --accent:#fe2c55; --cyan:#25f4ee;
+      --ok:#2ecc71; --warn:#f4b740; --danger:#ff5c72;
+      --radius:14px; --shadow:0 8px 30px rgba(0,0,0,.35);
+    }
+    * { box-sizing:border-box; }
+    html,body { overflow-x:hidden; }
+    body { margin:0; background:radial-gradient(1200px 600px at 80% -10%, #171b26 0%, var(--bg) 55%);
+      color:var(--text); font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+
+    /* Top bar */
+    .topbar { position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+      background:rgba(11,13,18,.82); border-bottom:1px solid var(--line);
+      padding:12px 20px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+    .brand { font-weight:700; letter-spacing:.2px; display:flex; align-items:center; gap:9px; }
+    .brand .dot { width:9px; height:9px; border-radius:50%;
+      background:linear-gradient(135deg,var(--accent),var(--cyan)); box-shadow:0 0 12px var(--accent); }
+    .pill { font-size:12px; color:var(--muted); background:var(--panel2); border:1px solid var(--line);
+      padding:5px 11px; border-radius:999px; display:inline-flex; align-items:center; gap:7px; }
+    .pill .status { width:8px; height:8px; border-radius:50%; background:var(--danger); }
+    .pill .status.on { background:var(--ok); box-shadow:0 0 8px var(--ok); }
+    .spacer { flex:1; }
+    .search { min-width:180px; }
+    .search input { width:100%; }
+
+    main { max-width:1180px; margin:0 auto; padding:22px 20px 60px; }
+
+    /* Controls */
+    .btn { background:var(--panel2); color:var(--text); border:1px solid var(--line);
+      border-radius:10px; padding:9px 15px; cursor:pointer; font:inherit; display:inline-flex;
+      align-items:center; gap:8px; transition:.15s; white-space:nowrap; }
+    .btn:hover:not(:disabled) { border-color:var(--muted); transform:translateY(-1px); }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .btn.primary { background:linear-gradient(135deg,var(--accent),#ff4d6d); border-color:transparent; color:#fff; }
+    .btn.cyan { background:linear-gradient(135deg,#12b8b0,var(--cyan)); border-color:transparent; color:#04201f; font-weight:600; }
+    .btn.ghost { background:transparent; }
+    .btn.sm { padding:6px 10px; font-size:13px; border-radius:8px; }
+    .btn .spin { width:14px; height:14px; border:2px solid rgba(255,255,255,.35);
+      border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:none; }
+    .btn.loading .spin { display:inline-block; }
+    .btn.loading .label { opacity:.7; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    input, textarea, select { width:100%; background:var(--panel2); color:var(--text);
+      border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; outline:none; }
+    input:focus, textarea:focus, select:focus { border-color:var(--cyan); box-shadow:0 0 0 3px rgba(37,244,238,.12); }
+    textarea { resize:vertical; min-height:110px; }
+    label { display:block; font-size:12px; color:var(--muted); margin-bottom:5px; }
+
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+    .toolbar .count { color:var(--muted); font-size:13px; }
+    .toolbar .count b { color:var(--text); }
+
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+      padding:18px; margin-bottom:18px; box-shadow:var(--shadow); }
+    .panel h2 { margin:0 0 14px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+    .collapsible { display:none; }
+    .collapsible.open { display:block; }
+
+    .warn-box { background:#2a1e12; border:1px solid #5a3d1a; color:var(--warn);
+      padding:11px 14px; border-radius:10px; margin-bottom:16px; font-size:13px; }
+
+    /* Cards */
+    .cases { display:grid; grid-template-columns:repeat(auto-fill,minmax(430px,1fr)); gap:16px; }
+    .case { position:relative; background:var(--panel); border:1px solid var(--line);
+      border-radius:var(--radius); padding:16px 16px 14px; box-shadow:var(--shadow); overflow:hidden; }
+    .case::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--muted); }
+    .case.t-banned::before { background:var(--accent); }
+    .case.t-warning::before { background:var(--warn); }
+    .case.t-manage::before { background:var(--cyan); }
+    .case.t-disable::before { background:#a06bff; }
+    .case-head { display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:14px; }
+    .case-head .num { color:var(--muted); font-variant-numeric:tabular-nums; font-size:13px; }
+    .case-head .user { font-weight:700; font-size:15px; }
+    .badge { font-size:11px; padding:3px 9px; border-radius:999px; background:var(--panel2);
+      color:var(--muted); border:1px solid var(--line); }
+    .badge.type { color:var(--text); }
+    .badge.type.banned { background:rgba(254,44,85,.12); color:#ff8098; border-color:rgba(254,44,85,.35); }
+    .badge.type.warning { background:rgba(244,183,64,.12); color:var(--warn); border-color:rgba(244,183,64,.35); }
+    .badge.type.manage { background:rgba(37,244,238,.1); color:var(--cyan); border-color:rgba(37,244,238,.3); }
+    .badge.type.disable { background:rgba(160,107,255,.12); color:#c3a0ff; border-color:rgba(160,107,255,.35); }
+
+    .profile-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+    .tt-link { color:var(--cyan); text-decoration:none; font-size:13px; font-weight:600;
+      border:1px solid rgba(37,244,238,.3); background:rgba(37,244,238,.08); padding:5px 10px; border-radius:8px; }
+    .tt-link:hover { background:rgba(37,244,238,.16); }
+    .linked { font-size:12px; color:var(--muted); margin-bottom:10px; word-break:break-word; }
+    .field { margin-bottom:11px; }
+    .copyline { display:flex; gap:8px; align-items:stretch; }
+    .copyline input { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px; }
+    .icon-btn { flex:0 0 auto; }
+    .copy.copied { border-color:var(--ok) !important; color:var(--ok); }
+    .case-busy { position:absolute; inset:0; background:rgba(11,13,18,.55); backdrop-filter:blur(2px);
+      display:none; align-items:center; justify-content:center; gap:10px; color:var(--muted); font-size:13px; }
+    .case.busy .case-busy { display:flex; }
+    .case-busy .spin { width:18px; height:18px; border:2px solid rgba(255,255,255,.25);
+      border-top-color:var(--cyan); border-radius:50%; animation:spin .7s linear infinite; }
+
+    .empty { grid-column:1/-1; color:var(--muted); text-align:center; padding:44px; border:1px dashed var(--line);
+      border-radius:var(--radius); }
+
+    /* Toasts */
+    #toasts { position:fixed; right:18px; bottom:18px; z-index:100; display:flex; flex-direction:column;
+      gap:10px; max-width:340px; }
+    .toast { background:var(--panel2); border:1px solid var(--line); border-left:4px solid var(--muted);
+      padding:11px 14px; border-radius:10px; font-size:13px; box-shadow:var(--shadow); animation:slidein .2s ease; }
+    .toast.ok { border-left-color:var(--ok); }
+    .toast.err { border-left-color:var(--danger); }
+    .toast.info { border-left-color:var(--cyan); }
+    @keyframes slidein { from { transform:translateX(20px); opacity:0; } }
+
+    @media (max-width:560px){ .cases { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="brand"><span class="dot"></span> RCX Submit Assistant</span>
+    <span class="pill" id="provider-pill">
+      <span class="status {{ 'on' if provider_ready else '' }}"></span>
+      <span id="provider-name">{{ config.provider }}</span>
+    </span>
+    <div class="spacer"></div>
+    <div class="search"><input id="search" placeholder="Search username or type..." oninput="applyFilter()"></div>
+    <button class="btn sm" onclick="toggleSettings()">⚙ Settings</button>
+  </div>
+
+  <main>
+    <div id="warn" class="warn-box" style="{{ '' if not provider_ready else 'display:none' }}">
+      <span id="warn-text">Provider <b>{{ config.provider }}</b> is not configured.
+      Add <code>{{ missing_key }}</code> to your <code>.env</code> file and restart.</span>
+    </div>
+
+    <div class="panel collapsible" id="settings">
+      <h2>Settings</h2>
+      <div class="grid">
+        <div>
+          <label>AI provider</label>
+          <select id="provider" onchange="onProviderChange()">
+            {% for p in providers %}
+            <option value="{{ p }}" {{ 'selected' if p == config.provider else '' }}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="grid-column:1/-1;">
+          <label>API key for <span id="key-provider">{{ config.provider }}</span> — saved in your browser (not sent to .env)</label>
+          <div style="display:flex;gap:8px;">
+            <input id="api_key" type="password" placeholder="paste API key here" style="flex:1;">
+            <button type="button" class="btn sm" onclick="toggleKey(this)">Show</button>
+          </div>
+        </div>
+        <div><label>Model (blank = default)</label>
+          <input id="model" value="{{ config.model }}" placeholder="provider default"></div>
+        <div><label>Email base</label><input id="email_base" value="{{ config.email_base }}"></div>
+        <div><label>Email domain</label><input id="email_domain" value="{{ config.email_domain }}"></div>
+        <div><label>Start index</label><input id="start_index" type="number" value="{{ config.start_index }}"></div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+        <button class="btn" onclick="saveConfig(this)"><span class="spin"></span><span class="label">Save settings</span></button>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin:0;">
+          <input type="checkbox" id="fallback" style="width:auto;" onchange="onFallbackChange()">
+          Auto-fallback to my other providers when one fails / hits its limit
+        </label>
+        <span class="pill">Email = base + "+" + (start + case #) + @domain</span>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn" id="btn-login" onclick="doLogin(this)"><span class="spin"></span><span class="label">Log in to system</span></button>
+      <button class="btn primary" id="btn-crawl" onclick="doCrawl(this)"><span class="spin"></span><span class="label">Crawl projects</span></button>
+      <button class="btn cyan" id="btn-genall" onclick="generateAll(this)"><span class="spin"></span><span class="label">Generate all messages</span></button>
+      <button class="btn" id="btn-stop" style="display:none;border-color:var(--danger);color:var(--danger);" onclick="stopGen()">■ Stop</button>
+      <span class="spacer"></span>
+      <span class="count">Showing <b id="shown-count">{{ cases|length }}</b> / {{ cases|length }} cases</span>
+    </div>
+
+    <div class="cases" id="cases">
+    {% for c in cases %}
+      {% set t = c.project_type|lower %}
+      <div class="case {{ 't-banned' if 'ban' in t else 't-warning' if 'warn' in t else 't-manage' if 'manage' in t else 't-disable' if ('disable' in t or 'ig' in t) else '' }}"
+           data-username="{{ c.username }}"
+           data-search="{{ c.username|lower }} {{ c.project_type|lower }}">
+        <div class="case-busy"><span class="spin"></span> Generating...</div>
+        <div class="case-head">
+          <span class="num">#{{ loop.index }}</span>
+          <span class="user">@{{ c.username }}</span>
+          <span class="badge type {{ 'banned' if 'ban' in t else 'warning' if 'warn' in t else 'manage' if 'manage' in t else 'disable' if ('disable' in t or 'ig' in t) else '' }}">{{ c.project_type }}</span>
+          {% if c.status %}<span class="badge">{{ c.status }}</span>{% endif %}
+          {% if c.days_left %}<span class="badge">{{ c.days_left }}</span>{% endif %}
+        </div>
+
+        <div class="profile-row">
+          <a class="tt-link" href="{{ c.tiktok_url or ('https://tiktok.com/@' + c.username) }}" target="_blank" rel="noopener">Open TikTok profile ↗</a>
+          <button class="btn ghost sm" onclick="copyLink(this, '{{ c.tiktok_url or ('https://tiktok.com/@' + c.username) }}')">Copy link</button>
+        </div>
+        {% if c.emails or c.phones %}
+        <div class="linked">🔗 {{ ((c.emails or []) + (c.phones or [])) | join(' · ') }}</div>
+        {% endif %}
+
+        <div class="field">
+          <label>Username</label>
+          <div class="copyline">
+            <input readonly value="@{{ c.username }}" data-role="username">
+            <button class="btn copy icon-btn" onclick="copyFrom(this)">Copy</button>
+          </div>
+        </div>
+        {% if c.email %}
+        <div class="field">
+          <label>Contact email</label>
+          <div class="copyline">
+            <input readonly value="{{ c.email }}" data-role="email">
+            <button class="btn copy icon-btn" onclick="copyFrom(this)">Copy</button>
+          </div>
+        </div>
+        {% endif %}
+        <div class="field">
+          <label>Additional details</label>
+          <textarea data-role="message" placeholder="Not generated yet.">{{ c.message }}</textarea>
+          <div style="margin-top:8px;display:flex;gap:8px;">
+            <button class="btn copy sm" onclick="copyFrom(this)">Copy message</button>
+            <button class="btn ghost sm" onclick="regen('{{ c.username }}', this)">Regenerate</button>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+    {% if not cases %}
+      <div class="empty">No cases yet. Click <b>Log in to system</b> once, then <b>Crawl projects</b>.</div>
+    {% endif %}
+    </div>
+  </main>
+
+  <div id="toasts"></div>
+
+  <script>
+    const SERVER_PROVIDER = {{ config.provider|tojson }};
+    const SERVER_READY = {{ 'true' if provider_ready else 'false' }};
+    const KEY_STORE = 'rcx_ai_keys';
+    let keys = (() => { try { return JSON.parse(localStorage.getItem(KEY_STORE) || '{}'); } catch (e) { return {}; } })();
+    let activeProvider = SERVER_PROVIDER;
+    let fallbackEnabled = localStorage.getItem('rcx_fallback') !== 'off';
+    let stopRequested = false, currentController = null;
+    const PREF = ['gemini', 'groq', 'deepseek', 'openai', 'anthropic', 'ollama'];
+
+    function onFallbackChange() {
+      fallbackEnabled = document.getElementById('fallback').checked;
+      localStorage.setItem('rcx_fallback', fallbackEnabled ? 'on' : 'off');
+    }
+    function buildOrder() {
+      const order = [activeProvider];
+      if (fallbackEnabled) {
+        for (const p of PREF) {
+          if (p === activeProvider || p === 'ollama') continue;  // skip local unless primary
+          if (keyFor(p)) order.push(p);
+        }
+      }
+      return order;
+    }
+
+    function saveKeys() { localStorage.setItem(KEY_STORE, JSON.stringify(keys)); }
+    function keyFor(p) { return (keys[p] || '').trim(); }
+    function isReady(p) { return p === 'ollama' || !!keyFor(p) || (p === SERVER_PROVIDER && SERVER_READY); }
+    function toggleKey(btn) {
+      const i = document.getElementById('api_key');
+      if (i.type === 'password') { i.type = 'text'; btn.textContent = 'Hide'; }
+      else { i.type = 'password'; btn.textContent = 'Show'; }
+    }
+    function refreshReady(p) {
+      const ready = isReady(p);
+      document.getElementById('provider-name').textContent = p;
+      document.querySelector('#provider-pill .status').classList.toggle('on', ready);
+      const warn = document.getElementById('warn');
+      if (ready) { warn.style.display = 'none'; }
+      else {
+        warn.style.display = 'block';
+        document.getElementById('warn-text').innerHTML =
+          'Provider <b>' + p + '</b> has no API key. Paste it in Settings (it saves in your browser), or add it to .env.';
+      }
+    }
+    function onProviderChange() {
+      const p = document.getElementById('provider').value;
+      document.getElementById('api_key').value = keyFor(p);
+      document.getElementById('key-provider').textContent = p;
+      refreshReady(p);
+    }
+    function stopGen() {
+      stopRequested = true;
+      if (currentController) currentController.abort();
+      toast('Stopping after the current one...', 'info');
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      const p = document.getElementById('provider').value;
+      document.getElementById('api_key').value = keyFor(p);
+      document.getElementById('key-provider').textContent = p;
+      document.getElementById('fallback').checked = fallbackEnabled;
+      refreshReady(p);
+    });
+
+    function toast(msg, kind) {
+      const box = document.getElementById('toasts');
+      const el = document.createElement('div');
+      el.className = 'toast ' + (kind || 'info');
+      el.textContent = msg;
+      box.appendChild(el);
+      setTimeout(() => { el.style.transition = '.3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 4200);
+    }
+    function busy(btn, on) {
+      if (!btn) return;
+      btn.classList.toggle('loading', on);
+      btn.disabled = on;
+    }
+    async function post(url, body, signal) {
+      const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body||{}), signal });
+      return res.json();
+    }
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    function toggleSettings() { document.getElementById('settings').classList.toggle('open'); }
+
+    function applyFilter() {
+      const q = document.getElementById('search').value.trim().toLowerCase();
+      let shown = 0;
+      document.querySelectorAll('.case').forEach((c) => {
+        const hit = !q || (c.dataset.search || '').includes(q);
+        c.style.display = hit ? '' : 'none';
+        if (hit) shown++;
+      });
+      document.getElementById('shown-count').textContent = shown;
+    }
+
+    function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+      return new Promise((res) => { const t=document.createElement('textarea'); t.value=text;
+        document.body.appendChild(t); t.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(t); res(); });
+    }
+    function copyLink(btn, url) {
+      copyText(url).then(() => {
+        const t = btn.textContent; btn.textContent = 'Copied'; btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = t; btn.classList.remove('copied'); }, 1100);
+      });
+    }
+    function copyFrom(btn) {
+      const el = btn.closest('.field').querySelector('[data-role]');
+      copyText(el.value).then(() => {
+        btn.classList.add('copied'); const t = btn.textContent; btn.textContent = 'Copied';
+        setTimeout(() => { btn.classList.remove('copied'); btn.textContent = t; }, 1100);
+      });
+    }
+
+    async function saveConfig(btn) {
+      busy(btn, true);
+      const provider = document.getElementById('provider').value;
+      keys[provider] = document.getElementById('api_key').value.trim();
+      saveKeys();
+      const data = {
+        provider,
+        model: document.getElementById('model').value,
+        email_base: document.getElementById('email_base').value,
+        email_domain: document.getElementById('email_domain').value,
+        start_index: document.getElementById('start_index').value,
+      };
+      const r = await post('/config', data);
+      busy(btn, false);
+      if (r.ok) {
+        document.querySelectorAll('.case').forEach((card) => {
+          const inp = card.querySelector('[data-role="email"]');
+          if (inp && r.emails[card.dataset.username]) inp.value = r.emails[card.dataset.username];
+        });
+        activeProvider = r.config.provider;
+        refreshReady(activeProvider);
+        toast('Settings saved.', 'ok');
+      } else { toast('Could not save settings.', 'err'); }
+    }
+
+    async function doLogin(btn) {
+      busy(btn, true); toast('Opening browser — finish the login in the new window.', 'info');
+      const r = await post('/login'); busy(btn, false);
+      toast(r.message, r.ok ? 'ok' : 'err');
+    }
+    async function doCrawl(btn) {
+      busy(btn, true); toast('Crawling all project pages...', 'info');
+      const r = await post('/crawl'); busy(btn, false);
+      toast(r.message, r.ok ? 'ok' : 'err');
+      if (r.ok) setTimeout(() => location.reload(), 900);
+    }
+
+    async function regen(username, btn) {
+      const card = document.querySelector('.case[data-username="' + CSS.escape(username) + '"]');
+      card.classList.add('busy'); if (btn) busy(btn, true);
+      const r = await post('/generate', { username, keys, order: buildOrder() });
+      card.classList.remove('busy'); if (btn) busy(btn, false);
+      if (r.messages && r.messages[username]) card.querySelector('[data-role="message"]').value = r.messages[username];
+      if (!r.ok || (r.errors && r.errors.length)) toast((r.errors && r.errors[0]) || r.message, 'err');
+      else toast('Message generated' + (r.used && r.used.length ? ' via ' + r.used.join(', ') : '') + '.', 'ok');
+    }
+
+    // Generate all: loop case-by-case for live progress + gentle pacing.
+    async function generateAll(btn) {
+      const cards = Array.from(document.querySelectorAll('.case')).filter(c => c.style.display !== 'none');
+      if (!cards.length) { toast('No cases to generate.', 'err'); return; }
+      const order = buildOrder();
+      if (!order.some(p => isReady(p))) {
+        toast('No API key configured. Add one in Settings first.', 'err'); return;
+      }
+      stopRequested = false;
+      busy(btn, true);
+      document.getElementById('btn-stop').style.display = '';
+      const label = btn.querySelector('.label'), original = label.textContent;
+      let done = 0, failed = 0; const used = new Set();
+      for (const card of cards) {
+        if (stopRequested) break;
+        const u = card.dataset.username;
+        card.classList.add('busy');
+        label.textContent = 'Generating ' + (done + failed + 1) + '/' + cards.length + '...';
+        currentController = new AbortController();
+        try {
+          const r = await post('/generate', { username: u, keys, order }, currentController.signal);
+          if (r.messages && r.messages[u]) { card.querySelector('[data-role="message"]').value = r.messages[u]; done++;
+            (r.used || []).forEach(p => used.add(p)); }
+          else { failed++; }
+        } catch (e) { failed++; }   // includes aborts
+        card.classList.remove('busy');
+        if (stopRequested) break;
+        await sleep(1000);
+      }
+      currentController = null;
+      document.getElementById('btn-stop').style.display = 'none';
+      label.textContent = original; busy(btn, false);
+      toast((stopRequested ? 'Stopped. ' : '') + 'Generated ' + done + ' message(s)' +
+        (used.size ? ' via ' + [...used].join(', ') : '') +
+        (failed && !stopRequested ? ', ' + failed + ' failed' : '') + '.',
+        (failed && !stopRequested) ? 'err' : 'ok');
+      stopRequested = false;
+    }
+  </script>
+</body>
+</html>

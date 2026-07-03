@@ -1,0 +1,191 @@
+========================================================================
+ RCX SUBMIT ASSISTANT — COMPLETE SETUP GUIDE (for beginners)
+========================================================================
+
+What this tool does:
+  - Logs into your project system (sys.rcx18.com) and reads your cases.
+  - Generates a unique appeal message for each case using a free AI (Gemini).
+  - Builds the rotating contact email (abcd+1@, abcd+2@, ...).
+  - Shows everything on a local web page with COPY buttons so you can paste
+    into the TikTok "Report a problem" form yourself.
+
+You run everything on your own Windows PC. Nothing is submitted automatically.
+
+Project folder:  E:\RCX\RCX submit bot
+All commands below are typed into PowerShell.
+
+------------------------------------------------------------------------
+ HOW TO OPEN POWERSHELL IN THE PROJECT FOLDER
+------------------------------------------------------------------------
+  1. Open File Explorer and go to:  E:\RCX\RCX submit bot
+  2. Click the address bar, type:  powershell   and press Enter.
+     (A blue PowerShell window opens already in the right folder.)
+
+Tip: You can paste a command into PowerShell with a right-click (or Ctrl+V),
+then press Enter.
+
+========================================================================
+ PART A — ONE-TIME SETUP (do this once)
+========================================================================
+ NOTE: If someone already set this PC up for you (the .venv folder and a
+ .env file already exist), you can skip straight to PART B.
+
+------------------------------------------------------------------------
+ STEP 1. Install Python (skip if already installed)
+------------------------------------------------------------------------
+  - Download Python from:  https://www.python.org/downloads/
+  - Run the installer. IMPORTANT: on the first screen, TICK the box
+    "Add python.exe to PATH", then click "Install Now".
+  - To check it worked, open PowerShell and run:
+        python --version
+    You should see something like:  Python 3.13.x
+
+------------------------------------------------------------------------
+ STEP 2. Create the virtual environment (a private space for the tool)
+------------------------------------------------------------------------
+  In PowerShell (inside E:\RCX\RCX submit bot) run:
+
+        python -m venv .venv
+
+  This creates a ".venv" folder. You only do this once.
+
+------------------------------------------------------------------------
+ STEP 3. Install the tool's dependencies
+------------------------------------------------------------------------
+  Run these two commands (they use the Python inside .venv):
+
+        .venv\Scripts\python.exe -m pip install --upgrade pip
+        .venv\Scripts\python.exe -m pip install -r requirements.txt
+
+  Then install the browser the crawler uses:
+
+        .venv\Scripts\python.exe -m playwright install chromium
+
+  (The last one downloads ~300 MB, so give it a minute.)
+
+------------------------------------------------------------------------
+ STEP 4. Get a FREE Google Gemini API key
+------------------------------------------------------------------------
+  1. Go to:  https://aistudio.google.com/apikey
+  2. Sign in with a Google account.
+  3. Click "Create API key" (choose or create a project). No credit card.
+  4. Copy the key that appears.
+
+------------------------------------------------------------------------
+ STEP 5. Create your settings file (.env)
+------------------------------------------------------------------------
+  Make a copy of the template and name it ".env":
+
+        Copy-Item ".env.example" ".env"
+
+  Now open the ".env" file (right-click it in File Explorer > Open with >
+  Notepad) and fill in:
+
+        AI_PROVIDER=gemini
+        GEMINI_API_KEY=paste-your-key-here
+
+        EMAIL_BASE=your-gmail-name        (e.g. oudompanha1111)
+        EMAIL_DOMAIN=gmail.com
+        START_INDEX=1
+
+  Save and close the file.
+
+  NOTE: Put your real key in ".env" only — NOT in ".env.example".
+
+  Email rotation explained:
+        EMAIL_BASE=abcd, START_INDEX=1  ->  abcd+1@gmail.com,
+                                            abcd+2@gmail.com, abcd+3@gmail.com ...
+
+  (Optional) To use a different free AI instead of Gemini:
+    - Groq:   get a key at https://console.groq.com/keys, then in .env set
+              AI_PROVIDER=groq  and  GROQ_API_KEY=your-key
+    - Ollama: install from https://ollama.com, run "ollama pull llama3.1",
+              then in .env set  AI_PROVIDER=ollama  (no key needed)
+  You can also switch provider later from the web page's Settings panel.
+
+========================================================================
+ PART B — RUN THE TOOL (do this every time you use it)
+========================================================================
+
+------------------------------------------------------------------------
+ STEP 6. Start the program
+------------------------------------------------------------------------
+  In PowerShell (inside E:\RCX\RCX submit bot) run:
+
+        .venv\Scripts\python.exe app.py
+
+  You will see a line like:  Running on http://127.0.0.1:5000
+  Leave this window OPEN while you work.
+
+------------------------------------------------------------------------
+ STEP 7. Open the dashboard
+------------------------------------------------------------------------
+  Open your web browser and go to:  http://127.0.0.1:5000
+
+------------------------------------------------------------------------
+ STEP 8. Use it (buttons on the page)
+------------------------------------------------------------------------
+  1. Click "Log in to system".
+     -> A browser window opens. Log into sys.rcx18.com like normal.
+     -> When you are logged in, it saves your session automatically.
+        (You usually only need to do this once until it expires.)
+
+  2. Click "Crawl projects".
+     -> It reads all your cases and lists them on the page.
+
+  3. Click "Generate all messages".
+     -> It writes a fresh, unique message for every case.
+        (Use "Regenerate" on a single case for a new version.)
+
+  4. For each case, click the COPY buttons (Username, Contact email,
+     Additional details) and paste them into the TikTok form:
+        https://www.tiktok.com/legal/report/feedback
+
+  Do "Generate all messages" again each day to get new, unique messages.
+
+------------------------------------------------------------------------
+ STEP 9. Stop the program
+------------------------------------------------------------------------
+  Go back to the PowerShell window and press:  Ctrl + C
+  (Or just close the window.)
+
+========================================================================
+ TROUBLESHOOTING
+========================================================================
+
+- "python is not recognized"
+    Python isn't installed or wasn't added to PATH. Redo STEP 1 and make
+    sure you TICK "Add python.exe to PATH".
+
+- ".venv\Scripts\activate : The module '.venv' could not be loaded"
+    You do NOT need to activate anything. Just run the tool with:
+        .venv\Scripts\python.exe app.py
+    (If you DO want to activate, in PowerShell it is:
+        .\.venv\Scripts\Activate.ps1
+     and if that gives a security error, first run this once, then activate:
+        Set-ExecutionPolicy -Scope Process -Bypass  )
+
+- "GEMINI_API_KEY missing" or message generation fails
+    You edited ".env.example" instead of ".env", or the key line is blank.
+    Make sure the key is pasted into ".env" with no extra spaces.
+
+- The web page won't open
+    Make sure the PowerShell window from STEP 6 is still running, and use
+    the exact address:  http://127.0.0.1:5000
+
+- Crawl finds no cases / wrong info
+    The last crawled page is saved in  data\last_page.html  — send that to
+    your developer to fine-tune the reader for your site's layout.
+
+- Login says it timed out
+    Just click "Log in to system" again and finish logging in within the
+    5-minute window.
+
+========================================================================
+ WHERE YOUR DATA LIVES (keep these private, don't share)
+========================================================================
+  .env             -> your API key and email settings
+  data\auth.json   -> your saved login session
+  data\cases.json  -> the cases pulled from your system
+  data\state.json  -> your settings + the generated messages
+========================================================================
