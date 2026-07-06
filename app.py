@@ -6,12 +6,13 @@ import time
 from flask import Flask, render_template, request, jsonify
 
 from config import (
-    BASE_DIR,
+    BASE_DIR, RESOURCE_DIR,
     load_cases, load_state, save_state, build_email,
 )
 import generator
 
-app = Flask(__name__)
+# Point Flask at the bundled templates (works from source and when frozen).
+app = Flask(__name__, template_folder=str(RESOURCE_DIR / "templates"))
 
 CRAWLER = str(BASE_DIR / "crawler.py")
 PROVIDERS = ["gemini", "groq", "deepseek", "openai", "anthropic", "ollama"]
@@ -33,11 +34,19 @@ def _email_map(config, cases):
     return out
 
 
+def _crawler_command(command):
+    """Build the argv to run a crawler command, source or frozen (PyInstaller)."""
+    if getattr(sys, "frozen", False):
+        # Frozen: re-invoke this same binary; main.py dispatches the subcommand.
+        return [sys.executable, command]
+    return [sys.executable, CRAWLER, command]
+
+
 def _run_crawler(command, timeout):
-    """Run crawler.py as a subprocess and return its final status token."""
+    """Run the crawler as a subprocess and return its final status token."""
     try:
         proc = subprocess.run(
-            [sys.executable, CRAWLER, command],
+            _crawler_command(command),
             cwd=str(BASE_DIR),
             capture_output=True,
             text=True,

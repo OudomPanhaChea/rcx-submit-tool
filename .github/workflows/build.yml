@@ -1,0 +1,62 @@
+name: Build apps
+
+# Builds a Windows folder and a macOS folder on every tagged release.
+# GitHub gives you free Windows + macOS runners, so you don't need to own a Mac.
+# Push a tag like v1.0.0 to trigger, or run manually from the Actions tab.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+          - os: macos-latest      # Apple Silicon runner
+            name: macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build app
+        run: pyinstaller build.spec
+
+      - name: Make the macOS launcher executable
+        if: runner.os == 'macOS'
+        run: chmod +x "dist/RCX-Submit-Assistant/Start-RCX.command"
+
+      - name: Bundle Chromium next to the app
+        shell: bash
+        env:
+          # Install Playwright's Chromium straight into the built folder.
+          PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/dist/RCX-Submit-Assistant/ms-playwright
+        run: python -m playwright install chromium
+
+      - name: Zip the app
+        shell: bash
+        run: |
+          cd dist
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a "RCX-Submit-Assistant-${{ matrix.name }}.zip" "RCX-Submit-Assistant"
+          else
+            zip -r "RCX-Submit-Assistant-${{ matrix.name }}.zip" "RCX-Submit-Assistant"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RCX-Submit-Assistant-${{ matrix.name }}
+          path: dist/RCX-Submit-Assistant-${{ matrix.name }}.zip

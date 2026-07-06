@@ -3,3 +3,9 @@ __pycache__/
 .env
 data/
 *.pyc
+
+# Build output
+dist/
+build/
+build_tmp/
+*.zip

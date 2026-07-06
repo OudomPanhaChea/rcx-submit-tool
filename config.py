@@ -1,11 +1,23 @@
 """Shared configuration and small persistence helpers."""
 import os
+import sys
 import json
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-BASE_DIR = Path(__file__).resolve().parent
+FROZEN = getattr(sys, "frozen", False)
+
+if FROZEN:
+    # Bundled read-only resources (templates) live in the PyInstaller temp dir;
+    # anything writable (data, .env) must live next to the executable so it
+    # survives between runs.
+    RESOURCE_DIR = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    BASE_DIR = Path(sys.executable).resolve().parent
+else:
+    RESOURCE_DIR = Path(__file__).resolve().parent
+    BASE_DIR = Path(__file__).resolve().parent
+
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
