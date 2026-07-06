@@ -35,9 +35,11 @@ jobs:
       - name: Build app
         run: pyinstaller build.spec
 
-      - name: Make the macOS launcher executable
+      - name: Add the macOS double-click launcher
         if: runner.os == 'macOS'
-        run: chmod +x "dist/RCX-Submit-Assistant/Start-RCX.command"
+        run: |
+          cp Start-RCX.command "dist/RCX-Submit-Assistant/Start-RCX.command"
+          chmod +x "dist/RCX-Submit-Assistant/Start-RCX.command"
 
       - name: Bundle Chromium next to the app
         shell: bash

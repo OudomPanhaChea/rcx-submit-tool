@@ -7,9 +7,10 @@ from PyInstaller.utils.hooks import collect_submodules
 
 datas = [
     ("templates", "templates"),      # bundled HTML (read-only)
-    (".env.example", "."),           # optional config template beside the app
-    ("Start-RCX.command", "."),      # double-click launcher for macOS
 ]
+# Note: the macOS launcher (Start-RCX.command) is NOT bundled here. PyInstaller 6
+# places datas inside an _internal/ subfolder, but a double-click launcher must sit
+# at the folder root next to the app. The build workflow copies it there instead.
 
 hiddenimports = collect_submodules("playwright")
 
