@@ -16,8 +16,10 @@ jobs:
         include:
           - os: windows-latest
             name: windows
-          - os: macos-latest      # Apple Silicon runner
+          - os: macos-latest      # Apple Silicon runner (M1/M2/M3/M4)
             name: macos-arm64
+          - os: macos-13          # Intel runner (older Macs, Core i5/i7)
+            name: macos-intel
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
